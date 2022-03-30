@@ -62,3 +62,72 @@ class CustomRegisterSerializer(RegisterSerializer):
         self.cleaned_data = self.get_cleaned_data()
         user = User.objects.create_user(**self.cleaned_data)
         return user
+
+
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ('id', 'username', 'email', 'phone_number', 'address', 'city', 'state', 'zip_code', 'first_name', 'last_name')
+
+
+class SubCategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Category
+        fields = ('id', 'name')
+
+
+class CategorySerializer(serializers.ModelSerializer):
+    subcategories = SubCategorySerializer(many=True)
+
+    class Meta:
+        model = Category
+        fields = ('id', 'name', 'subcategories')
+
+
+class ItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Item
+        fields = ('id', 'name', 'description', 'price', 'image', 'category')
+
+
+class RentalSerialzier(serializers.ModelSerializer):
+    class Meta:
+        model = Rental
+        fields = ('id', 'user', 'item', 'start_date', 'end_date', 'status')
+
+
+class SafeConductSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SafeConduct
+        fields = ('id', 'user','item', 'document')
+
+
+class ReviewSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Review
+        fields = ('id', 'user', 'item', 'rating', 'comment')
+
+
+class MessageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Message
+        fields = ('id', 'user', 'message')
+
+
+class UserMessagesSerializer(serializers.ModelSerializer):
+    message = MessageSerializer(many=True)
+
+    class Meta:
+        model = Message
+        fields = ('id', 'user', 'message')
+
+
+class CategoryItemsSerializer(serializers.ModelSerializer):
+    items = ItemSerializer(many=True)
+
+    class Meta:
+        model = Category
+        fields = ('id', 'name', 'category', 'items')
+
+
+
