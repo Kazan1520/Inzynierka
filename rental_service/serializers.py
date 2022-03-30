@@ -73,7 +73,7 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class CategorySerializer(serializers.ModelSerializer):
-    parentCategory = serializers.PrimaryKeyRelatedField()
+    parentCategory = serializers.PrimaryKeyRelatedField(read_only=True)
     subcategories = serializers.ListSerializer(child=RecursiveField())
 
     class Meta:
