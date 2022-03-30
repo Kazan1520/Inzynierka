@@ -3,7 +3,7 @@ from dj_rest_auth.registration.views import RegisterView
 from rental_service.serializers import *
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from serializers import *
+from rental_service.serializers import *
 from rest_framework import status
 
 class CustomRegisterView(RegisterView):
