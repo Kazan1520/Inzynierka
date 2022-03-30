@@ -1,5 +1,7 @@
 from dj_rest_auth.registration.serializers import RegisterSerializer
 from rest_framework import serializers
+from rest_framework_recursive.fields import RecursiveField
+
 from rental_service.models import *
 import re
 
@@ -70,18 +72,13 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ('id', 'username', 'email', 'phone_number', 'address', 'city', 'state', 'zip_code', 'first_name', 'last_name')
 
 
-class SubCategorySerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Category
-        fields = ('id', 'name')
-
-
 class CategorySerializer(serializers.ModelSerializer):
-    subcategories = SubCategorySerializer(many=True)
+    parentCategory = serializers.PrimaryKeyRelatedField()
+    subcategories = serializers.ListSerializer(child=RecursiveField())
 
     class Meta:
         model = Category
-        fields = ('id', 'name', 'subcategories')
+        fields = ('parentCategory', 'id', 'name', 'subcategories')
 
 
 class ItemSerializer(serializers.ModelSerializer):
@@ -90,7 +87,7 @@ class ItemSerializer(serializers.ModelSerializer):
         fields = ('id', 'name', 'description', 'price', 'image', 'category')
 
 
-class RentalSerialzier(serializers.ModelSerializer):
+class RentalSerializer(serializers.ModelSerializer):
     class Meta:
         model = Rental
         fields = ('id', 'user', 'item', 'start_date', 'end_date', 'status')
