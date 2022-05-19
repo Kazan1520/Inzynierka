@@ -6,6 +6,7 @@ from rest_framework.response import Response
 from rental_service.serializers import *
 from rest_framework import status
 
+
 class CustomRegisterView(RegisterView):
     serializer_class = CustomRegisterSerializer
 
@@ -145,6 +146,7 @@ class RentalViewSetList(APIView):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
 class RentalViewSetDetail(APIView):
 
     def get_object(self, pk):
@@ -179,6 +181,7 @@ class RentalViewSetDetail(APIView):
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
 class SafeConductViewSetList(APIView):
     queryset = SafeConduct.objects.all()
 
@@ -193,6 +196,7 @@ class SafeConductViewSetList(APIView):
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 class SafeConductViewSetDetail(APIView):
 
@@ -228,55 +232,6 @@ class SafeConductViewSetDetail(APIView):
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-class ReviewViewSetList(APIView):
-    queryset = Review.objects.all()
-
-    def get(self, request, format=None):
-        reviews = Review.objects.all()
-        serializer = ReviewSerializer(reviews, many=True)
-        return Response(serializer.data)
-
-    def post(self, request, format=None):
-        serializer = ReviewSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-class ReviewViewSetDetail(APIView):
-
-    def get_object(self, pk):
-        try:
-            return Review.objects.get(pk=pk)
-        except Review.DoesNotExist:
-            return Response(status=status.HTTP_404_NOT_FOUND)
-
-    def get(self, request, pk, format=None):
-        review = self.get_object(pk)
-        serializer = ReviewSerializer(review)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-    def put(self, request, pk, format=None):
-        review = self.get_object(pk)
-        serializer = ReviewSerializer(review, data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def delete(self, request, pk, format=None):
-        review = self.get_object(pk)
-        review.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-    def patch(self, request, pk, format=None):
-        review = self.get_object(pk)
-        serializer = ReviewSerializer(review, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class MessageViewSetList(APIView):
     queryset = Message.objects.all()
@@ -293,7 +248,7 @@ class MessageViewSetList(APIView):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-#viewsetdetail for message
+
 class MessageViewSetDetail(APIView):
 
     def get_object(self, pk):
@@ -328,6 +283,7 @@ class MessageViewSetDetail(APIView):
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
 class UserMessagesViewSetList(APIView):
 
     def get(self, request, format=None):
@@ -352,6 +308,21 @@ class CategoryItemsViewSetList(APIView):
 
     def post(self, request, format=None):
         serializer = ItemSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ItemRentViewSetList(APIView):
+
+    def get(self, request, pk, format=None):
+        rents = Rental.objects.filter(item=pk)
+        serializer = ItemRentSerializer(rents, many=True)
+        return Response(serializer.data)
+
+    def post(self, request, format=None):
+        serializer = ItemRentSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)

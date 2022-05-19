@@ -99,12 +99,6 @@ class SafeConductSerializer(serializers.ModelSerializer):
         fields = ('id', 'user','item', 'document')
 
 
-class ReviewSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Review
-        fields = ('id', 'user', 'item', 'rating', 'comment')
-
-
 class MessageSerializer(serializers.ModelSerializer):
     class Meta:
         model = Message
@@ -127,4 +121,10 @@ class CategoryItemsSerializer(serializers.ModelSerializer):
         fields = ('id', 'name', 'category', 'items')
 
 
+class ItemRentSerializer(serializers.ModelSerializer):
+    rental = RentalSerializer(many=True)
+
+    class Meta:
+        model = Item
+        fields = ('id', 'name', 'rental')
 

@@ -61,37 +61,13 @@ class Rental(models.Model):
 
 class SafeConduct(models.Model):
     id = models.UUIDField(primary_key=True, editable=False, default=uuid.uuid4)
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    item = models.ForeignKey(Item, on_delete=models.CASCADE)
+    rental = models.ForeignKey(Rental, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     document = models.FileField(upload_to='documents/')
 
     def __str__(self):
-        return self.user.username + ' ' + self.item.name
-
-
-class Newsletter(models.Model):
-    id = models.UUIDField(primary_key=True, editable=False, default=uuid.uuid4)
-    email = models.EmailField()
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    def __str__(self):
-        return self.email
-
-
-class Review(models.Model):
-    id = models.UUIDField(primary_key=True, editable=False, default=uuid.uuid4)
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    item = models.ForeignKey(Item, on_delete=models.CASCADE)
-    rating = models.IntegerField()
-    comment = models.CharField(max_length=500)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    def __str__(self):
-        return self.user.username + ' ' + self.item.name
+        return self.rental.user.username + ' ' + self.rental.item.name
 
 
 class Message(models.Model):
@@ -103,4 +79,14 @@ class Message(models.Model):
 
     def __str__(self):
         return self.user.username + ' ' + self.message
+
+
+class DeliveryMethod(models.Model):
+    id = models.UUIDField(primary_key=True, editable=False, default=uuid.uuid4)
+    name = models.CharField(max_length=50)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.name
 
