@@ -45,7 +45,8 @@ INSTALLED_APPS = [
     'allauth',
     'allauth.account',
     'django_seed',
-    'rest_framework_simplejwt'
+    'rest_framework_simplejwt',
+    'wkhtmltopdf',
 ]
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
