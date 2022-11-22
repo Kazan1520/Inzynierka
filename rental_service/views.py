@@ -1,5 +1,11 @@
+from abc import ABC
+from typing import Type
+import pandas as pd
+from django.http import FileResponse
 from django.shortcuts import render
 from dj_rest_auth.registration.views import RegisterView
+from rest_framework.pagination import LimitOffsetPagination
+
 from rental_service.serializers import *
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -7,281 +13,150 @@ from rental_service.serializers import *
 from rest_framework import status
 
 
+class GenericViewSetMixin:
+    queryset = None
+    serializer_class = None
+    model = None
+    save_serializer_class = None
+    paginator = None
+
+    def validate(self):
+        assert (self.model != None), f'Model not defined in {self.__class__.__name__}'
+        assert (self.serializer_class != None), f'Serializer_class not defined in {self.__class__.__name__}'
+
+    def check_model(self, raise_error=True):
+        for attr in self.__dict__:
+            print(attr)
+            if attr == "save_serializer_class":
+                return
+            if attr is None:
+                if raise_error:
+                    raise TypeError
+                else:
+                    print(f'There\'s a problem with class {self.__name__}')
+
+
+class GenericViewSetList(APIView, GenericViewSetMixin):
+
+    def get(self, request, format=None):
+        self.validate()
+        qs = self.model.objects.all()
+        count = qs.count()
+        if self.paginator:
+            qs = self.paginator.paginate_queryset(qs, request)
+        serializer = self.serializer_class(qs, many=True)
+        return Response(serializer.data)
+
+    def post(self, request, format=None):
+        serializer = self.save_serializer_class(data=request.data) if self.save_serializer_class \
+            else self.serializer_class(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class GenericViewSetDetail(APIView, GenericViewSetMixin):
+
+    def get_object(self, pk):
+        try:
+            return self.model.objects.get(pk=pk)
+        except self.model.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+
+    def get(self, request, pk, format=None):
+        qs = self.get_object(pk)
+        serializer = self.serializer_class(qs)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def put(self, request, pk, format=None):
+        qs = self.get_object(pk)
+        serializer = self.save_serializer_class(qs, data=request.data) if self.save_serializer_class else \
+            self.serializer_class(qs, request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, pk, format=None):
+        qs = self.get_object(pk)
+        qs.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    def patch(self, request, pk, format=None):
+        qs = self.get_object(pk)
+        serializer = self.save_serializer_class(qs, data=request.data, partial=True) if self.save_serializer_class \
+            else self.serializer_class(qs, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
 class CustomRegisterView(RegisterView):
     serializer_class = CustomRegisterSerializer
 
 
-class UserViewSetList(APIView):
+class UserViewSetList(GenericViewSetList):
     queryset = User.objects.all()
     serializer_class = UserSerializer
-
-    def get(self, request, format=None):
-        users = User.objects.all()
-        serializer = UserSerializer(users, many=True)
-        return Response(serializer.data)
-
-    def post(self, request, format=None):
-        serializer = UserSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-class UserViewSetDetail(APIView):
-
-    def get_object(self, pk):
-        try:
-            return User.objects.get(pk=pk)
-        except User.DoesNotExist:
-            return Response(status=status.HTTP_404_NOT_FOUND)
-
-    def get(self, request, pk, format=None):
-        user = self.get_object(pk)
-        serializer = UserSerializer(user)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-    def put(self, request, pk, format=None):
-        user = self.get_object(pk)
-        serializer = UserSerializer(user, data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def delete(self, request, pk, format=None):
-        user = self.get_object(pk)
-        user.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-    def patch(self, request, pk, format=None):
-        user = self.get_object(pk)
-        serializer = UserSerializer(user, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    model = User
 
 
-class CategoryViewSetList(APIView):
+class UserViewSetDetail(GenericViewSetDetail):
+    model = User
+    serializer_class = UserSerializer
+
+
+class CategoryViewSetList(GenericViewSetList):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
-
-    def get(self, request, format=None):
-        categories = Category.objects.all()
-        serializer = CategorySerializer(categories, many=True)
-        return Response(serializer.data)
-
-    def post(self, request, format=None):
-        serializer = CategorySerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    model = Category
 
 
-class ItemViewSetList(APIView):
+class ItemViewSetList(GenericViewSetList):
     queryset = Item.objects.all()
     serializer_class = ItemSerializer
-
-    def get(self, request, format=None):
-        items = Item.objects.all()
-        serializer = ItemSerializer(items, many=True)
-        return Response(serializer.data)
-
-    def post(self, request, format=None):
-        serializer = ItemSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    model = Item
+    paginator = LimitOffsetPagination()
 
 
-class ItemViewSetDetail(APIView):
-
-    def get_object(self, pk):
-        try:
-            return Item.objects.get(pk=pk)
-        except Item.DoesNotExist:
-            return Response(status=status.HTTP_404_NOT_FOUND)
-
-    def get(self, request, pk, format=None):
-        item = self.get_object(pk)
-        serializer = ItemSerializer(item)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-    def put(self, request, pk, format=None):
-        item = self.get_object(pk)
-        serializer = ItemSerializer(item, data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def delete(self, request, pk, format=None):
-        item = self.get_object(pk)
-        item.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-    def patch(self, request, pk, format=None):
-        item = self.get_object(pk)
-        serializer = ItemSerializer(item, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+class ItemViewSetDetail(GenericViewSetDetail):
+    model = Item
+    serializer_class = ItemSerializer
 
 
-class RentalViewSetList(APIView):
+class RentalViewSetList(GenericViewSetList):
     queryset = Rental.objects.all()
-
-    def get(self, request, format=None):
-        rentals = Rental.objects.all()
-        serializer = RentalSerializer(rentals, many=True)
-        return Response(serializer.data)
-
-    def post(self, request, format=None):
-        serializer = RentalSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    serializer_class = RentalSerializer
+    model = Rental
 
 
-class RentalViewSetDetail(APIView):
-
-    def get_object(self, pk):
-        try:
-            return Rental.objects.get(pk=pk)
-        except Rental.DoesNotExist:
-            return Response(status=status.HTTP_404_NOT_FOUND)
-
-    def get(self, request, pk, format=None):
-        rental = self.get_object(pk)
-        serializer = RentalSerializer(rental)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-    def put(self, request, pk, format=None):
-        rental = self.get_object(pk)
-        serializer = RentalSerializer(rental, data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def delete(self, request, pk, format=None):
-        rental = self.get_object(pk)
-        rental.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-    def patch(self, request, pk, format=None):
-        rental = self.get_object(pk)
-        serializer = RentalSerializer(rental, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+class RentalViewSetDetail(GenericViewSetDetail):
+    serializer_class = RentalSerializer
+    model = Rental
 
 
-class SafeConductViewSetList(APIView):
+class SafeConductViewSetList(GenericViewSetList):
     queryset = SafeConduct.objects.all()
-
-    def get(self, request, format=None):
-        safe_conducts = SafeConduct.objects.all()
-        serializer = SafeConductSerializer(safe_conducts, many=True)
-        return Response(serializer.data)
-
-    def post(self, request, format=None):
-        serializer = SafeConductSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    serializer_class = SafeConductSerializer
+    model = SafeConduct
 
 
-class SafeConductViewSetDetail(APIView):
-
-    def get_object(self, pk):
-        try:
-            return SafeConduct.objects.get(pk=pk)
-        except SafeConduct.DoesNotExist:
-            return Response(status=status.HTTP_404_NOT_FOUND)
-
-    def get(self, request, pk, format=None):
-        safe_conduct = self.get_object(pk)
-        serializer = SafeConductSerializer(safe_conduct)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-    def put(self, request, pk, format=None):
-        safe_conduct = self.get_object(pk)
-        serializer = SafeConductSerializer(safe_conduct, data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def delete(self, request, pk, format=None):
-        safe_conduct = self.get_object(pk)
-        safe_conduct.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-    def patch(self, request, pk, format=None):
-        safe_conduct = self.get_object(pk)
-        serializer = SafeConductSerializer(safe_conduct, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+class SafeConductViewSetDetail(GenericViewSetDetail):
+    serializer_class = SafeConductSerializer
+    model = SafeConduct
 
 
-class MessageViewSetList(APIView):
+class MessageViewSetList(GenericViewSetList):
     queryset = Message.objects.all()
-
-    def get(self, request, format=None):
-        messages = Message.objects.all()
-        serializer = MessageSerializer(messages, many=True)
-        return Response(serializer.data)
-
-    def post(self, request, format=None):
-        serializer = MessageSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    serializer_class = MessageSerializer
+    model = Message
 
 
-class MessageViewSetDetail(APIView):
-
-    def get_object(self, pk):
-        try:
-            return Message.objects.get(pk=pk)
-        except Message.DoesNotExist:
-            return Response(status=status.HTTP_404_NOT_FOUND)
-
-    def get(self, request, pk, format=None):
-        message = self.get_object(pk)
-        serializer = MessageSerializer(message)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-    def put(self, request, pk, format=None):
-        message = self.get_object(pk)
-        serializer = MessageSerializer(message, data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def delete(self, request, pk, format=None):
-        message = self.get_object(pk)
-        message.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-    def patch(self, request, pk, format=None):
-        message = self.get_object(pk)
-        serializer = MessageSerializer(message, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+class MessageViewSetDetail(GenericViewSetDetail):
+    serializer_class = MessageSerializer
+    model = Message
 
 
 class UserMessagesViewSetList(APIView):
@@ -299,19 +174,21 @@ class UserMessagesViewSetList(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class CategoryItemsViewSetList(APIView):
+class CategoryItemsViewSetDetail(APIView):
+    paginator = LimitOffsetPagination()
 
-    def get(self, request, format=None):
-        items = Item.objects.all()
-        serializer = ItemSerializer(items, many=True)
+    def get(self, request, pk, format=None):
+        items = Item.objects.filter(category=pk)
+        qs = self.paginator.paginate_queryset(items, request)
+        serializer = ItemSerializer(qs, many=True)
         return Response(serializer.data)
 
-    def post(self, request, format=None):
-        serializer = ItemSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class CategoryItemsCountView(APIView):
+
+    def get(self, request, pk, format=None):
+        items = Item.objects.filter(category=pk)
+        return Response(items.count())
 
 
 class ItemRentViewSetList(APIView):
@@ -327,3 +204,22 @@ class ItemRentViewSetList(APIView):
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class GenerateItemExcelView(APIView):
+
+    def post(self, request, format=None):
+        items = Item.objects.all()
+        df = pd.DataFrame(list(items.values()))
+        df['created_at'] = df['created_at'].apply(lambda x: x.strftime('%Y-%m-%d %H:%M:%S'))
+        df['updated_at'] = df['updated_at'].apply(lambda x: x.strftime('%Y-%m-%d %H:%M:%S'))
+        df.to_excel('items.xlsx', index=False)
+        response = Response(status=status.HTTP_200_OK, data={'message': 'Excel file generated'})
+        return
+
+
+class ItemCountView(APIView):
+
+    def get(self, request, format=None):
+        items = Item.objects.all()
+        return Response(items.count())

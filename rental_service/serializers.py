@@ -5,6 +5,7 @@ from rest_framework_recursive.fields import RecursiveField
 from rental_service.models import *
 import re
 
+
 class CustomRegisterSerializer(RegisterSerializer):
     phone_number = serializers.CharField(required=True, write_only=True, max_length=10)
     address = serializers.CharField(required=True, write_only=True, max_length=100)
@@ -74,17 +75,24 @@ class UserSerializer(serializers.ModelSerializer):
 
 class CategorySerializer(serializers.ModelSerializer):
     parentCategory = serializers.PrimaryKeyRelatedField(read_only=True)
-    subcategories = serializers.ListSerializer(child=RecursiveField())
 
     class Meta:
         model = Category
-        fields = ('parentCategory', 'id', 'name', 'subcategories')
+        fields = ('parentCategory', 'id', 'name')
+
+
+class ItemImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ItemImage
+        fields = ('id', 'image')
 
 
 class ItemSerializer(serializers.ModelSerializer):
+    images = ItemImageSerializer(many=True, read_only=True)
+
     class Meta:
         model = Item
-        fields = ('id', 'name', 'description', 'price', 'image', 'category')
+        fields = ('id', 'name', 'description', 'price', 'images', 'category')
 
 
 class RentalSerializer(serializers.ModelSerializer):
@@ -118,7 +126,7 @@ class CategoryItemsSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Category
-        fields = ('id', 'name', 'category', 'items')
+        fields = ('id', 'name', 'category')
 
 
 class ItemRentSerializer(serializers.ModelSerializer):
@@ -127,4 +135,3 @@ class ItemRentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Item
         fields = ('id', 'name', 'rental')
-
