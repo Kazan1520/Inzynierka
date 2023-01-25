@@ -1,5 +1,10 @@
+import django_filters
 from dj_rest_auth.registration.serializers import RegisterSerializer
+from django.db.models import Q
+from drf_extra_fields.fields import Base64ImageField
+from drf_writable_nested import WritableNestedModelSerializer
 from rest_framework import serializers
+from rest_framework.fields import SerializerMethodField
 from rest_framework_recursive.fields import RecursiveField
 
 from rental_service.models import *
@@ -8,10 +13,6 @@ import re
 
 class CustomRegisterSerializer(RegisterSerializer):
     phone_number = serializers.CharField(required=True, write_only=True, max_length=10)
-    address = serializers.CharField(required=True, write_only=True, max_length=100)
-    city = serializers.CharField(required=True, write_only=True, max_length=50)
-    state = serializers.CharField(required=True, write_only=True, max_length=50)
-    zip_code = serializers.CharField(required=True, write_only=True, max_length=10)
     first_name = serializers.CharField(required=True, write_only=True, max_length=50)
     last_name = serializers.CharField(required=True, write_only=True, max_length=50)
 
@@ -29,36 +30,12 @@ class CustomRegisterSerializer(RegisterSerializer):
             raise serializers.ValidationError("Phone number must be numeric")
         return value
 
-    def validate_zip_code(self, value):
-        if not re.match(r'^[0-9]{2}-[0-9]{3}$', value):
-            raise serializers.ValidationError("Invalid zip code")
-        return value
-
-    def validate_address(self, value):
-        if not re.match(r'^[a-ząćęłńóśźżA-ZĄĘŁŃÓŚŹŻ0-9\s,]*$', value):
-            raise serializers.ValidationError("Invalid address")
-        return value
-
-    def validate_city(self, value):
-        if not re.match(r'^[a-ząćęłńóśźżA-ZĄĘŁŃÓŚŹŻ0-9\s,]*$', value):
-            raise serializers.ValidationError("Invalid city")
-        return value
-
-    def validate_state(self, value):
-        if not re.match(r'^[a-ząćęłńóśźżA-ZĄĘŁŃÓŚŹŻ0-9\s,]*$', value):
-            raise serializers.ValidationError("Invalid state")
-        return value
-
     def get_cleaned_data(self):
         return {
             'username': self.validated_data.get('username', ''),
             'password': self.validated_data.get('password1', ''),
             'email': self.validated_data.get('email', ''),
             'phone_number': self.validated_data.get('phone_number', ''),
-            'address': self.validated_data.get('address', ''),
-            'city': self.validated_data.get('city', ''),
-            'state': self.validated_data.get('state', ''),
-            'zip_code': self.validated_data.get('zip_code', ''),
         }
 
     def save(self, request):
@@ -70,15 +47,14 @@ class CustomRegisterSerializer(RegisterSerializer):
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ('id', 'username', 'email', 'phone_number', 'address', 'city', 'state', 'zip_code', 'first_name', 'last_name')
+        fields = ('id', 'username', 'email', 'phone_number', 'first_name', 'last_name')
 
 
 class CategorySerializer(serializers.ModelSerializer):
-    parentCategory = serializers.PrimaryKeyRelatedField(read_only=True)
 
     class Meta:
         model = Category
-        fields = ('parentCategory', 'id', 'name')
+        fields = ('id', 'name')
 
 
 class ItemImageSerializer(serializers.ModelSerializer):
@@ -87,38 +63,37 @@ class ItemImageSerializer(serializers.ModelSerializer):
         fields = ('id', 'image')
 
 
+class ItemImageSaveSerializer(serializers.ModelSerializer):
+    image = Base64ImageField()
+
+    class Meta:
+        model = ItemImage
+        fields = ('image', )
+
+
 class ItemSerializer(serializers.ModelSerializer):
     images = ItemImageSerializer(many=True, read_only=True)
 
     class Meta:
         model = Item
-        fields = ('id', 'name', 'description', 'price', 'images', 'category')
+        fields = ('id', 'name', 'status', 'description', 'images', 'category', 'serial_number')
+
+
+class ItemSaveSerializer(WritableNestedModelSerializer):
+    images = ItemImageSaveSerializer(many=True)
+
+    class Meta:
+        model = Item
+        fields = ('id', 'name', 'description', 'images', 'category', 'serial_number')
 
 
 class RentalSerializer(serializers.ModelSerializer):
+    item = ItemSerializer(read_only=True)
+    user = UserSerializer(read_only=True)
+
     class Meta:
         model = Rental
         fields = ('id', 'user', 'item', 'start_date', 'end_date', 'status')
-
-
-class SafeConductSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = SafeConduct
-        fields = ('id', 'user','item', 'document')
-
-
-class MessageSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Message
-        fields = ('id', 'user', 'message')
-
-
-class UserMessagesSerializer(serializers.ModelSerializer):
-    message = MessageSerializer(many=True)
-
-    class Meta:
-        model = Message
-        fields = ('id', 'user', 'message')
 
 
 class CategoryItemsSerializer(serializers.ModelSerializer):
@@ -135,3 +110,9 @@ class ItemRentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Item
         fields = ('id', 'name', 'rental')
+
+
+class MyUserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ('id', 'username', 'email', 'phone_number', 'first_name', 'last_name', 'is_staff')

@@ -5,6 +5,5 @@ admin.site.register(User)
 admin.site.register(Rental)
 admin.site.register(Item)
 admin.site.register(Category)
-admin.site.register(SafeConduct)
 admin.site.register(ItemImage)
 
